@@ -1,0 +1,28 @@
+{
+  "n_oscillators": 2,
+  "sample_rate": 44100,
+  "signal_duration": 1,
+  "available_types": ["O"],
+  "editable_types": ["O"],
+  "available_waves": ["sine", "square", "triangle", "sawtooth"],
+  "available_filters": ["lowpass"],
+  "oscillator_available_parameters": ["freq", "waveform"],
+  "oscillator_editable_parameters": ["freq", "waveform"],
+  "O0": {
+    "amp": 1,
+    "freq": 3600,
+    "modulation_factor": 1,
+    "waveform": "sawtooth",
+    "output_module": "Mixer"
+  },
+  "O1": {
+    "amp": 1,
+    "freq": 3600,
+    "modulation_factor": 1,
+    "waveform": "sawtooth",
+    "output_module": "Mixer"
+  },
+  "Mixer": {
+    "output_module": "Output"
+  }
+}

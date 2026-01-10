@@ -1,0 +1,44 @@
+{
+  "n_oscillators": 3,
+  "sample_rate": 44100,
+  "signal_duration": 15,
+  "available_types": ["O"],
+  "O0": {
+    "amp": 1,
+    "freq": 10,
+    "waveform": "sine",
+    "input_module": null,
+    "output_module": "O1"
+  },
+  "O1": {
+    "amp": 1,
+    "freq": 440,
+    "modulation_factor": 1,
+    "waveform": "sawtooth",
+    "input_module": "O0",
+    "output_module": "Mixer"
+  },
+  "O2": {
+    "amp": 1,
+    "freq": 220,
+    "waveform": "square",
+    "input_module": null,
+    "output_module": "Mixer"
+  },
+  "ADSR": {
+    "attack": 1,
+    "decay": 1,
+    "sustain": 0,
+    "sustain_time": 2,
+    "release": 5,
+    "input_module": "F1",
+    "output_module": "Output"
+  },
+  "F1": {
+    "cutoff_freq": 300.00,
+    "resonance": 5,
+    "filter_type": "lowpass",
+    "input_module": "Mixer",
+    "output_module": "ADSR"
+  }
+}

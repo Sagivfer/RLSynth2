@@ -1,0 +1,36 @@
+{
+  "n_oscillators": 1,
+  "sample_rate": 44100,
+  "signal_duration": 1,
+  "available_types": ["O","F"],
+  "editable_types": ["F"],
+  "available_waves": ["sawtooth"],
+  "available_filters": ["lowpass"],
+  "oscillator_available_parameters": ["freq"],
+  "filter_available_parameters": ["cutoff_freq"],
+  "filter_editable_parameters": ["cutoff_freq"],
+  "O0": {
+    "amp": 1,
+    "freq": 27.5,
+    "modulation_factor": 1,
+    "waveform": "sawtooth",
+    "output_module": "F0"
+  },
+  "F0": {
+    "cutoff_freq": 20000,
+    "filter_type": "lowpass",
+    "output_module": "ADSR",
+    "resonance": 0.707
+  },
+  "ADSR": {
+    "attack": 0.2,
+    "decay": 0.2,
+    "sustain": 1,
+    "sustain_time": 0.2,
+    "release": 0.4,
+    "output_module": "Mixer"
+  },
+  "Mixer": {
+    "output_module": "Output"
+  }
+}

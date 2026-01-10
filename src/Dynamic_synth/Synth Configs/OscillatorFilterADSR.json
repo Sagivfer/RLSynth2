@@ -1,0 +1,38 @@
+{
+  "n_oscillators": 1,
+  "sample_rate": 44100,
+  "signal_duration": 1,
+  "available_types": ["O", "F", "ADSR"],
+  "editable_types": ["O", "F", "ADSR"],
+  "available_waves": ["sine", "square", "triangle", "sawtooth"],
+  "available_filters": ["lowpass"],
+  "oscillator_available_parameters": ["freq", "waveform"],
+  "oscillator_editable_parameters": ["freq", "waveform"],
+  "filter_available_parameters": ["cutoff_freq"],
+  "filter_editable_parameters": ["cutoff_freq"],
+  "ADSR_available_parameters": ["attack", "decay", "sustain", "release", "sustain_time"],
+  "ADSR_editable_parameters": ["attack", "decay", "sustain", "release", "sustain_time"],
+  "O0": {
+    "amp": 1,
+    "freq": 4186,
+    "modulation_factor": 1,
+    "waveform": "sawtooth",
+    "output_module": "F0"
+  },
+  "F0": {
+    "cutoff_freq": 20000,
+    "filter_type": "lowpass",
+    "output_module": "ADSR"
+  },
+  "ADSR": {
+    "attack": 0.5,
+    "decay": 1,
+    "sustain": 1,
+    "sustain_time": 0.2,
+    "release": 1,
+    "output_module": "Mixer"
+  },
+  "Mixer": {
+    "output_module": "Output"
+  }
+}

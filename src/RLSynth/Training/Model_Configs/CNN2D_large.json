@@ -1,0 +1,1 @@
+{"representation_dim": 100, "models_dim": 50, "n_layers": 5, "Backbone": "CNN2D", "are_shared_mlp": true, "are_shared": false, "pretrained": false}
