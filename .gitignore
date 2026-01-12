@@ -2,3 +2,4 @@ src/Dynamic_synth/wandb/
 src/RLSynth/wandb/
 src/RLSynth/Regular_Training/wandb/
 src/wandb/
+wandb/

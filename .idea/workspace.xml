@@ -5,25 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d692110a-89f7-4b83-b44c-039924cfa4b3" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/.idea/.name" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/.idea/src.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Dynamic_synth/SynthSoundTest.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dynamic_synth/SynthSoundTest.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Algorithms.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Algorithms.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Environment.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Environment.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Training/Training_Configs/Training_Config_A2C.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Training/Training_Configs/Training_Config_A2C.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/AutoEncoderTraining.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/AutoEncoderTraining.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/ParameterTrainingFFT.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/ParameterTrainingFFT.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/SRL.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/SRL.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/SST.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/SST.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/Training.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/Training.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/VF.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/Training/Training_Scripts/VF.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RLSynth/prioritized_memory.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RLSynth/prioritized_memory.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -72,23 +54,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.Environment.executor": "Run",
-    "Python.Training.executor": "Run",
-    "Python.prioritized_memory.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "C:/Users/sgvfe/OneDrive/Desktop/RLSynth2",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
-    "to.speed.mode.migration.done": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.Environment.executor&quot;: &quot;Run&quot;,
+    &quot;Python.Training.executor&quot;: &quot;Run&quot;,
+    &quot;Python.prioritized_memory.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/sgvfe/OneDrive/Desktop/RLSynth2&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="Training" type="PythonConfigurationType" factoryName="Python">
       <module name="RLSynth2" />
