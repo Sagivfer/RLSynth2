@@ -5,7 +5,7 @@ Shared Space Training
 import Dynamic_synth.SynthModules as SM
 import torch
 import json
-from RL_Synth import Models, Environment, Algorithms
+from src.RLSynth import Models, Environment, Algorithms
 from torch import nn
 import os
 import wandb

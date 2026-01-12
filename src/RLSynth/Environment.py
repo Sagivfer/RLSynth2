@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from Dynamic_synth import SynthModules as SM
-from RL_Synth import Models as M
+from src.Dynamic_synth import SynthModules as SM
+from src.RLSynth import Models
+from src.RLSynth import Utils
 import json
 import os
-from RL_Synth import Utils as UT
 import wandb
 from abc import ABC, abstractmethod
 from random import shuffle, sample
@@ -39,7 +39,7 @@ class Environment(object):
 
         self.set_synth_related_attributes(synth_config)
 
-        self.mel_spec = UT.mel_spectrogram_transform.to(self.device)
+        self.mel_spec = Utils.mel_spectrogram_transform.to(self.device)
         self.n_frames = int(self.synth.sample_rate * self.synth.signal_duration / self.mel_spec.hop_length + 1)
 
         self.desired_signal = self.synth2copy(self.synth.t).to(self.device)
@@ -55,7 +55,7 @@ class Environment(object):
         self.scale_factor = scale_factor
         self.update_value()
 
-        self.mel_spec = UT.mel_spectrogram_transform.to(self.device)
+        self.mel_spec = Utils.mel_spectrogram_transform.to(self.device)
 
         self.previous_action = None
 
@@ -218,7 +218,7 @@ class Environment(object):
                 distance += reward_weight * torch.dot(self.current_signal, self.desired_signal)
 
             elif reward_type == 'earth_mover':
-                distance += -1 * reward_weight * (UT.magnitude_penalized_emd(
+                distance += -1 * reward_weight * (Utils.magnitude_penalized_emd(
                     self.desired_signal_mel_spec.squeeze(0),
                     self.current_signal_mel_spec.squeeze(0))).detach().item()
 
@@ -231,8 +231,8 @@ class Environment(object):
                             (torch.linalg.norm(diff_current) * torch.linalg.norm(diff_desired) + 0.001)
 
             elif reward_type == 'peak_diff':
-                sum_current = UT.get_sum_peaks(np.array(self.current_signal.cpu()))
-                sum_desired = UT.get_sum_peaks(np.array(self.desired_signal.cpu()))
+                sum_current = Utils.get_sum_peaks(np.array(self.current_signal.cpu()))
+                sum_desired = Utils.get_sum_peaks(np.array(self.desired_signal.cpu()))
                 distance_peak = -1 * np.abs(sum_desired - sum_current) / (sum_current + sum_desired)
                 distance += reward_weight * distance_peak
 
@@ -499,50 +499,54 @@ class Manager:
 
     def build_backbone(self):
         if self.backbone_type == 'FusionModel':
-            self.SoundEncoder = M.FusionModel([24, 48, 64],
-                                              [3, 3, 3],
-                                              [24, 48, 64],
-                                              [3, 3, 3],
-                                              self.representation_dim,
-                                              self.models_dim, 3)
+            self.SoundEncoder = Models.FusionModel([24, 48, 64],
+                                                   [3, 3, 3],
+                                                   [24, 48, 64],
+                                                   [3, 3, 3],
+                                                   self.representation_dim,
+                                                   self.models_dim, 3)
             self.need_mel_spec = True
 
         elif self.backbone_type == 'ResNet':
-            self.SoundEncoder = M.BackBone([2, 2, 2, 2], self.representation_dim, sample_rate=44100).to(torch.float32)
+            self.SoundEncoder = Models.BackBone([2, 2, 2, 2],
+                                                self.representation_dim,
+                                                sample_rate=44100).to(torch.float32)
             self.need_mel_spec = True
 
         elif self.backbone_type == 'CNN2D':
             n_filters = [4, 4, 4]
             filter_sizes = [3, 3, 3]
-            self.SoundEncoder = M.SimpleCNN(n_filters,
-                                            filter_sizes,
-                                            self.representation_dim,
-                                            self.environment.n_frames,
-                                            n_sounds=1).to(torch.float32)
+            self.SoundEncoder = Models.SimpleCNN(n_filters,
+                                                 filter_sizes,
+                                                 self.representation_dim,
+                                                 self.environment.n_frames,
+                                                 n_sounds=1).to(torch.float32)
             self.need_mel_spec = True
 
         elif self.backbone_type == 'CNN1D':
-            self.SoundEncoder = M.SimpleCNN1D([32, 64, 96], [9, 9, 9], self.representation_dim).to(torch.float32)
+            self.SoundEncoder = Models.SimpleCNN1D([32, 64, 96],
+                                                   [9, 9, 9],
+                                                   self.representation_dim).to(torch.float32)
 
         elif self.backbone_type == 'Attention':
-            self.SoundEncoder = M.AttentionModel(n_mels=self.environment.mel_spec.n_mels,
-                                                 n_frames=self.environment.n_frames,
-                                                 model_dim=self.models_dim,
-                                                 representation_dim=self.representation_dim)
+            self.SoundEncoder = Models.AttentionModel(n_mels=self.environment.mel_spec.n_mels,
+                                                      n_frames=self.environment.n_frames,
+                                                      model_dim=self.models_dim,
+                                                      representation_dim=self.representation_dim)
             self.need_mel_spec = True
 
         if self.are_shared_mlp:
             # self.advanced_representation = M.RLMLP(self.representation_dim, 2, self.environment.curr_synth_parameters.shape[0],
             #                                        self.models_dim, self.n_layers)
-            self.advanced_representation = M.RLMLP(representation_dim=self.representation_dim,
-                                                   n_representations=1,
-                                                   context_dim=self.environment.curr_synth_parameters.shape[0],
-                                                   model_dim=self.models_dim,
-                                                   # n_layers=self.n_layers,
-                                                   n_layers=2,
-                                                   activation='Tanh',
-                                                   is_residual=True,
-                                                   is_deep_wide=True)
+            self.advanced_representation = Models.RLMLP(representation_dim=self.representation_dim,
+                                                        n_representations=1,
+                                                        context_dim=self.environment.curr_synth_parameters.shape[0],
+                                                        model_dim=self.models_dim,
+                                                        # n_layers=self.n_layers,
+                                                        n_layers=2,
+                                                        activation='Tanh',
+                                                        is_residual=True,
+                                                        is_deep_wide=True)
 
     def get_sound_representation(self, signal1=None, signal2=None, mel_spec=None, mel_spec2=None) -> torch.Tensor:
         """
@@ -804,43 +808,43 @@ class OptionBasedAgent(Agent):
 
         action_dim = 1
         if max_step_val is not None:
-            self.regression = M.ParameterDifferenceRegression(representation_dim=self.representation_dim,
-                                                              n_representations=1,
-                                                              model_dim=models_dim,
-                                                              context_dim=self.state_dim,
-                                                              max_step_val=max_step_val,
-                                                              n_layers=n_layers,
-                                                              is_residual=True,
-                                                              are_shared_mlp=are_shared_mlp).to(torch.float32)
+            self.regression = Models.ParameterDifferenceRegression(representation_dim=self.representation_dim,
+                                                                   n_representations=1,
+                                                                   model_dim=models_dim,
+                                                                   context_dim=self.state_dim,
+                                                                   max_step_val=max_step_val,
+                                                                   n_layers=n_layers,
+                                                                   is_residual=True,
+                                                                   are_shared_mlp=are_shared_mlp).to(torch.float32)
             self.max_val = max_val
             self.min_val = min_val
             action_dim = 1
 
         elif self.options is not None:
-            self.selection = M.CategoricalChoice(representation_dim=self.representation_dim,
-                                                 n_representations=1,
-                                                 model_dim=models_dim,
-                                                 context_dim=self.state_dim,
-                                                 choices=self.options,
-                                                 n_layers=n_layers,
-                                                 is_residual=True,
-                                                 are_shared_mlp=are_shared_mlp).to(torch.float32)
+            self.selection = Models.CategoricalChoice(representation_dim=self.representation_dim,
+                                                      n_representations=1,
+                                                      model_dim=models_dim,
+                                                      context_dim=self.state_dim,
+                                                      choices=self.options,
+                                                      n_layers=n_layers,
+                                                      is_residual=True,
+                                                      are_shared_mlp=are_shared_mlp).to(torch.float32)
             action_dim = len(options)
 
         if is_SRL:
-            self.state_regression = M.StateRegression(representation_dim=self.representation_dim,
-                                                      action_dim=action_dim,
-                                                      model_dim=models_dim,
-                                                      context_dim=self.state_dim,
-                                                      n_layers=n_layers,
-                                                      is_residual=True).to(torch.float32)
+            self.state_regression = Models.StateRegression(representation_dim=self.representation_dim,
+                                                           action_dim=action_dim,
+                                                           model_dim=models_dim,
+                                                           context_dim=self.state_dim,
+                                                           n_layers=n_layers,
+                                                           is_residual=True).to(torch.float32)
 
-            self.action_regression = M.ActionRegression(representation_dim=self.representation_dim,
-                                                        action_dim=action_dim,
-                                                        model_dim=models_dim,
-                                                        context_dim=self.state_dim,
-                                                        n_layers=n_layers,
-                                                        is_residual=True).to(torch.float32)
+            self.action_regression = Models.ActionRegression(representation_dim=self.representation_dim,
+                                                             action_dim=action_dim,
+                                                             model_dim=models_dim,
+                                                             context_dim=self.state_dim,
+                                                             n_layers=n_layers,
+                                                             is_residual=True).to(torch.float32)
 
     @property
     def previous_agent(self):
@@ -921,7 +925,7 @@ class OptionBasedAgent(Agent):
         [mu, sigma, extremity] = policy
         if is_optimal:
             return mu, extremity, sigma
-        parameter = M.sample_continuous(mu, sigma)
+        parameter = Models.sample_continuous(mu, sigma)
         return parameter, extremity, sigma
 
     def get_action_from_state_representation(self, state_representation=None, is_optimal=False, policy=None):
@@ -944,14 +948,14 @@ class OptionBasedAgent(Agent):
         if policy is None:
             policy, _, _ = self.get_policy_from_state_representation(state_representation)
         probabilities = policy[0]
-        choice_log_prob = M.get_log_prob_categorical(action, probabilities, device=self.device)
+        choice_log_prob = Models.get_log_prob_categorical(action, probabilities, device=self.device)
         return choice_log_prob
 
     def get_continuous_parameter_log_prob(self, action, state_representation, policy=None):
         if policy is None:
             policy, _, _ = self.get_policy_from_state_representation(state_representation)
         mu, sigma, extremity = policy[0]
-        parameter_log_prob = M.get_log_prob_continuous(action, mu, sigma, device=self.device)
+        parameter_log_prob = Models.get_log_prob_continuous(action, mu, sigma, device=self.device)
         return parameter_log_prob
 
     def get_action_log_prob(self, action, state_representation, policy=None):
@@ -1117,7 +1121,7 @@ class HierarchicalAgent(Manager, Agent):
         policy, termination, _ = self.get_agent_from_indices().get_policy_from_state_representation(state_representation)
         return policy, termination
 
-    def search_agent(self, state_representation, t, logger: UT.Logger = None, is_optimal=False):
+    def search_agent(self, state_representation, t, logger: Utils.Logger = None, is_optimal=False):
         active_agent = self.get_agent_from_indices(self.current_agent_level)
         agent_for_log = active_agent
         policy, stop_prob, _ = active_agent.get_policy_from_state_representation(state_representation)
@@ -1243,7 +1247,7 @@ class CyclicAgent(HierarchicalAgent):
         self.current_agent_level = len(self.active_agents_indices)
         self.current_bottom_agent_index = 0
 
-    def search_agent(self, state_representation, t, logger: UT.Logger = None, is_optimal=False):
+    def search_agent(self, state_representation, t, logger: Utils.Logger = None, is_optimal=False):
         self.current_bottom_agent_index += 1
         self.current_bottom_agent_index %= len(self.indices2agent)
         self.active_agents_indices = list(self.indices2agent_keys[self.current_bottom_agent_index])
@@ -1266,15 +1270,15 @@ class Critic(Manager):
 
         self.state_dim = environment.curr_synth_parameters.shape[0]
 
-        self.ValueEstimation = M.ValueEstimation(representation_dim=self.representation_dim,
-                                                 n_representations=1,
-                                                 model_dim=models_dim * 5,
-                                                 context_dim=self.state_dim,
-                                                 n_layers=n_layers,
-                                                 is_residual=False,
-                                                 is_deep_wide=False,
-                                                 are_shared_mlp=are_shared_mlp,
-                                                 scale_factor=environment.max_scaled_val)
+        self.ValueEstimation = Models.ValueEstimation(representation_dim=self.representation_dim,
+                                                      n_representations=1,
+                                                      model_dim=models_dim * 5,
+                                                      context_dim=self.state_dim,
+                                                      n_layers=n_layers,
+                                                      is_residual=False,
+                                                      is_deep_wide=False,
+                                                      are_shared_mlp=are_shared_mlp,
+                                                      scale_factor=environment.max_scaled_val)
 
         self.target_critic = None
 
@@ -1327,22 +1331,22 @@ class SynthRegression(nn.Module):
         self.n_oscillators = synth.n_oscillators
 
         self.oscillators_parameters_regression \
-            = nn.ModuleList([M.ParameterRegression(representation_dim, 2, model_dim, n_layers)
+            = nn.ModuleList([Models.ParameterRegression(representation_dim, 2, model_dim, n_layers)
                              for i in range(self.n_oscillators)])
 
         self.oscillators_waveform_regression \
-            = nn.ModuleList([M.CategoricalChoice(representation_dim, 1, 0, synth.available_waves, model_dim, n_layers)
+            = nn.ModuleList([Models.CategoricalChoice(representation_dim, 1, 0, synth.available_waves, model_dim, n_layers)
                              for i in range(self.n_oscillators)])
 
         self.filters_parameters_regression \
-            = nn.ModuleList([M.ParameterRegression(representation_dim, 2, model_dim, n_layers)
+            = nn.ModuleList([Models.ParameterRegression(representation_dim, 2, model_dim, n_layers)
                              for i in range(self.n_oscillators)])
 
         self.filters_filter_type_regression \
-            = nn.ModuleList([M.CategoricalChoice(representation_dim, 1, 0, synth.available_filters, model_dim, n_layers)
+            = nn.ModuleList([Models.CategoricalChoice(representation_dim, 1, 0, synth.available_filters, model_dim, n_layers)
                              for i in range(self.n_oscillators)])
 
-        self.ADSR_regression = M.ParameterRegression(representation_dim, 5, model_dim, n_layers)
+        self.ADSR_regression = Models.ParameterRegression(representation_dim, 5, model_dim, n_layers)
 
     def forward(self, x):
         oscillators_parameters = list()
@@ -1379,7 +1383,7 @@ class SynthRegression(nn.Module):
         return synth_parameters_list, synth_parameters_tensor
 
 
-def create_trajectory(n_actions, episode: UT.Episode, agent, env: Environment, logger: UT.Logger = None, log_data=True,
+def create_trajectory(n_actions, episode: Utils.Episode, agent, env: Environment, logger: Utils.Logger = None, log_data=True,
                       is_optimal=False, play_sound=False, show_spec=False, specs_dir=None, inference_mode=False):
     state_representation, _ = agent.get_state_representation()
 
@@ -1875,14 +1879,14 @@ def test_model(test_set, n_actions, env: Environment, agent, play_sound=False, s
     show_spec_local = False
     save_arrows_flag = False
     point_dir = None
-    n_test = 1000
+    n_test = 1
     n_graph = 100
     desired_points = list()
     final_points = list()
     for i, point in enumerate(test_set[:n_test]):
         count_play += 1
 
-        episode = UT.Episode()
+        episode = Utils.Episode()
         env.synth2copy.init_synth_from_list(point[0])
         env.synth.init_synth_from_list(point[1])
         env.update_signal(3)

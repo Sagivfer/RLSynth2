@@ -6,10 +6,10 @@ import torch.optim as optim
 from _distutils_hack import shim
 from torch.utils.data import BatchSampler
 
-import RL_Synth.Environment as Env
+import src.RLSynth.Environment as Env
+import src.RLSynth.Utils as UT
+from src.RLSynth.prioritized_memory import Memory
 import wandb
-from RL_Synth import Utils as UT
-from RL_Synth.prioritized_memory import Memory
 
 torch.set_printoptions(precision=10)
 

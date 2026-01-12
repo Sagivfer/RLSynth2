@@ -1,8 +1,8 @@
-import Dynamic_synth.SynthModules as SM
+import src.Dynamic_synth.SynthModules as SM
 import torch
 import json
 import matplotlib.pyplot as plt
-from RL_Synth import Models, Environment, Algorithms, Utils
+from src.RLSynth import Environment, Models, Algorithms, Utils
 import torch.optim as optim
 import os
 import cProfile
@@ -12,10 +12,10 @@ torch.cuda.memory._record_memory_history(enabled=True)
 
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 synth_file = fr'{project_dir}/Dynamic_synth/Synth Configs/2OscillatorFreqWave.json'
-training_config_file = fr'{project_dir}/RL_Synth/Training/Training_Configs/Training_Config_A2C.json'
-environment_config_file = fr'{project_dir}/RL_Synth/Training/Environment_Configs/Environment_Config.json'
-model_config_file = fr'{project_dir}/RL_Synth/Training/Model_Configs/CNN2D_small.json'
-test_set_dir = fr'{project_dir}/RL_Synth/Training/Datasets/TestSet2Ofreq_wave.csv'
+training_config_file = fr'{project_dir}/RLSynth/Training/Training_Configs/Training_Config_A2C.json'
+environment_config_file = fr'{project_dir}/RLSynth/Training/Environment_Configs/Environment_Config.json'
+model_config_file = fr'{project_dir}/RLSynth/Training/Model_Configs/CNN2D_small.json'
+test_set_dir = fr'{project_dir}/RLSynth/Training/Datasets/TestSet2Ofreq_wave.csv'
 test_set = Utils.create_test_set_list(test_set_dir)
 
 with open(model_config_file) as f:
@@ -162,7 +162,7 @@ logger = None
 advantage_logger = None
 T = 30
 
-for T, n_steps in zip([30, 35, 40, 45], [15000, 15000, 15000, 15000]):
+for T, n_steps in zip([30, 35, 40, 45], [1, 1, 1, 1]):
 # for T, n_modules, n_parameters, n_steps in zip([30, 30, 30, 40, 50, 60],
 #                                     [1, 1, 2, 2, 2, 2],
 #                                     [1, 2, 1, 2, 2, 2],
@@ -216,10 +216,13 @@ pr.dump_stats('profile.pstat')
 #
 #     R.append(RL_optimizer.optimize())
 
-file_dir = fr"C:/Users/sgvfe/Desktop/Degree/2nd_degree/Thesis/Models/{algorithm}/{experiment_num}"
+if not os.path.isdir(fr"{project_dir}/TrainedModels/{algorithm}"):
+    os.mkdir(fr"{project_dir}/TrainedModels/{algorithm}")
+
+file_dir = fr"{project_dir}/TrainedModels/{algorithm}/{experiment_num}"
 os.mkdir(file_dir)
 
-agent_dir = fr"C:/Users/sgvfe/Desktop/Degree/2nd_degree/Thesis/Models/{algorithm}/{experiment_num}/Agent"
+agent_dir = fr"{project_dir}/TrainedModels/{algorithm}/{experiment_num}/Agent"
 os.mkdir(agent_dir)
 manager.save_models(agent_dir)
 
@@ -227,7 +230,7 @@ with open(fr'{file_dir}/config.json', 'w') as f:
     json.dump(training_config, f)
 
 if training_config["baseline"] or algorithm == 'ActorCritic' or algorithm == 'OptionCritic':
-    critic_dir = fr"C:/Users/sgvfe/Desktop/Degree/2nd_degree/Thesis/Models/{algorithm}/{experiment_num}/Critic"
+    critic_dir = fr"{project_dir}/TrainedModels/{algorithm}/{experiment_num}/Critic"
     os.mkdir(critic_dir)
     critic.save_models(critic_dir)
 

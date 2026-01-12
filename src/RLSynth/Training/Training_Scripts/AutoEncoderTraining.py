@@ -4,7 +4,7 @@ import SynthModules as SM
 import torch
 import torch.nn as nn
 import json
-import RL_Synth.Environment as Environment
+import src.RLSynth.Environment as Environment
 import wandb
 
 

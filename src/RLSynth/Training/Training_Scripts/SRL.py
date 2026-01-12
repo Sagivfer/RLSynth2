@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 import Dynamic_synth.SynthModules as SM
 import torch
 import json
-from RL_Synth import Models, Environment, Algorithms, Utils
-from utils import metrics
+from src.RLSynth import Models, Environment, Algorithms, Utils
 import os
 import wandb
 import numpy as np

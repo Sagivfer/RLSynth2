@@ -2,7 +2,7 @@ import Dynamic_synth.SynthModules as SM
 import torch
 import json
 import matplotlib.pyplot as plt
-from RL_Synth import Models, Environment, Algorithms, Utils
+from src.RLSynth import Models, Environment, Algorithms, Utils
 import os
 import wandb
 

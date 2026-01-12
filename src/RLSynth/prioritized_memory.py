@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from RL_Synth.SumTree import SumTree
+from src.RLSynth.SumTree import SumTree
 
 
 class Memory:
