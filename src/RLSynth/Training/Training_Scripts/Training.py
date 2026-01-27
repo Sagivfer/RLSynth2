@@ -7,6 +7,7 @@ import torch.optim as optim
 import os
 import cProfile
 import wandb
+import glob
 
 torch.cuda.memory._record_memory_history(enabled=True)
 
@@ -36,8 +37,6 @@ with open(training_config_file) as f:
     exploratory = training_config["exploratory"]
     baseline = training_config["baseline"]
     algorithm = training_config["algorithm"]
-    experiment_num = training_config["experiment_num"]
-    training_config["experiment_num"] += 1
 
 with open(synth_file) as f:
     synth_config = dict(json.load(f))
@@ -66,11 +65,11 @@ level_to_model = Environment.DFS_agent_parameters(manager.top_agent)
 n_levels = len(level_to_model.keys()) - 1
 for level, agents_models in level_to_model.items():
     for model, model_name, sub_agent in agents_models:
-        multiplier = max([0.1, 0.1 ** (n_levels - level)])
+        multiplier = 0.1 if len(sub_agent.next_agents) > 0 else 1
         # multiplier = 1
         # Higher learning rate for categorical choices
-        if len(sub_agent.next_agents) == 0 and len(sub_agent.options) > 0:
-            multiplier *= 10
+        # if len(sub_agent.next_agents) == 0 and len(sub_agent.options) > 0:
+        #     multiplier *= 10
 
         for sub_model_name, sub_model in model.named_children():
             if sub_model_name == 'termination':
@@ -162,7 +161,7 @@ logger = None
 advantage_logger = None
 T = 30
 
-for T, n_steps in zip([30, 35, 40, 45], [1, 1, 1, 1]):
+for T, n_steps in zip([30, 35], [15000, 15000]):
 # for T, n_modules, n_parameters, n_steps in zip([30, 30, 30, 40, 50, 60],
 #                                     [1, 1, 2, 2, 2, 2],
 #                                     [1, 2, 1, 2, 2, 2],
@@ -218,6 +217,10 @@ pr.dump_stats('profile.pstat')
 
 if not os.path.isdir(fr"{project_dir}/TrainedModels/{algorithm}"):
     os.mkdir(fr"{project_dir}/TrainedModels/{algorithm}")
+
+list_of_experiments = glob.glob(fr"{project_dir}/TrainedModels/{algorithm}/*")
+latest_experiment = max(list_of_experiments, key=os.path.getctime)
+experiment_num = int(latest_experiment[-4:]) + 1
 
 file_dir = fr"{project_dir}/TrainedModels/{algorithm}/{experiment_num}"
 os.mkdir(file_dir)

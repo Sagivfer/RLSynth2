@@ -255,7 +255,7 @@ class RLOptimizer(object):
             stopping_regularization = torch.abs(0.5 - stop_prob)
 
         # print(f"Stopping loss: {stopping_loss}, Stopping regularization: {stopping_regularization}")
-        return self.RL_weight * (stopping_loss + 0.1 * stopping_regularization)
+        return self.RL_weight * (stopping_loss + 0 * stopping_regularization)
 
     def get_representation_reg(self, state_representation):
         state_representation_reg = torch.mean(torch.abs(state_representation))
@@ -272,8 +272,6 @@ class RLOptimizer(object):
         advantage_for_stopping = advantage
         if self.normalize_reward and self.logger.loss_calc_step > 10000:
             advantage = (advantage - self.advantage_logger.averages[f'{agent.module_name}_advantage']) \
-                        / self.advantage_logger.std[f'{agent.module_name}_advantage']
-            advantage_for_stopping = (advantage + self.etta - self.advantage_logger.averages[f'{agent.module_name}_advantage']) \
                         / self.advantage_logger.std[f'{agent.module_name}_advantage']
 
         self.losses.append(self.get_actor_loss(advantage, action_log_prob, transition) * loss_weight)
@@ -307,6 +305,7 @@ class RLOptimizer(object):
         return loss_weight
 
     def update_parameters_wrt_grads(self, delta=1):
+        # self.print_magnitude()
         if self.critic is not None:
             if self.is_clipping:
                 for p in self.critic.model_parameters:
@@ -412,7 +411,7 @@ class RLOptimizer(object):
                 td_target = reward + self.gamma ** transition.n_steps * critic_value2
                 advantage = td_target - critic_value1.item()
                 # print(advantage.item(), reward, critic_value1.item(), critic_value2)
-                # critic_error = td_target - critic_value1
+                critic_error = td_target - critic_value1
                 # print(critic_value1, critic_value2, transition.reward, target)
                 # print(transition.state1[-1], transition.state2[-1])
         return critic_error, advantage, transition.G
@@ -965,7 +964,6 @@ class OptionCritic(OnlineAlgorithm):
                     t_start, t_end, action_prob, stopped = agent_episode
                     if t_start == t_end or t_start >= self.T:
                         continue
-
                     reward = Gs[t_start] - Gs[t_end] - self.etta * stopped
                     state1 = copy_nested_list(episode.States[t_start])
                     state2 = copy_nested_list(episode.States[t_end])
@@ -1020,18 +1018,20 @@ class OptionCritic(OnlineAlgorithm):
             print(np.sqrt(torch.sum(torch.pow(self.critic.ValueEstimation.value.weight, 2)).item()))
 
         if self.critic.SoundEncoder.features2encoding.output.weight.grad is not None:
-            print("Representation")
-            print(np.sqrt(torch.sum(torch.pow(self.agent.SoundEncoder.features2encoding.output.weight.grad, 2)).item()))
-            print(np.sqrt(torch.sum(torch.pow(self.agent.SoundEncoder.features2encoding.output.weight, 2)).item()))
-            print(np.sqrt(torch.sum(torch.pow(self.agent.advanced_representation.mlp.output.weight.grad, 2)).item()))
-            print(np.sqrt(torch.sum(torch.pow(self.agent.advanced_representation.mlp.output.weight, 2)).item()))
-            print(np.sqrt(torch.sum(torch.pow(self.agent.advanced_representation.mlp.output.bias.grad, 2)).item()))
-            print(np.sqrt(torch.sum(torch.pow(self.agent.advanced_representation.mlp.output.bias, 2)).item()))
+            print("Critic Representation")
+            print(np.sqrt(torch.sum(torch.pow(self.critic.SoundEncoder.features2encoding.output.weight.grad, 2)).item()))
+            print(np.sqrt(torch.sum(torch.pow(self.critic.SoundEncoder.features2encoding.output.weight, 2)).item()))
+            print("Advanced Representation")
+            print(np.sqrt(torch.sum(torch.pow(self.critic.advanced_representation.mlp.output.weight.grad, 2)).item()))
+            print(np.sqrt(torch.sum(torch.pow(self.critic.advanced_representation.mlp.output.weight, 2)).item()))
 
         if self.agent.SoundEncoder.features2encoding.output.weight.grad is not None:
-            print("Representation")
+            print("Agent Representation")
             print(np.sqrt(torch.sum(torch.pow(self.agent.SoundEncoder.features2encoding.output.weight.grad, 2)).item()))
             print(np.sqrt(torch.sum(torch.pow(self.agent.SoundEncoder.features2encoding.output.weight, 2)).item()))
+            print("Advanced Representation")
+            print(np.sqrt(torch.sum(torch.pow(self.agent.advanced_representation.mlp.output.weight.grad, 2)).item()))
+            print(np.sqrt(torch.sum(torch.pow(self.agent.advanced_representation.mlp.output.weight, 2)).item()))
 
         if self.agent.advanced_representation.mlp.output.weight.grad is not None:
             print("Adv Representation")

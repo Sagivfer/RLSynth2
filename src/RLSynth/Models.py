@@ -561,7 +561,7 @@ class CategoricalChoice(nn.Module):
         if is_optimal:
             result = torch.argmax(probabilities).unsqueeze(0)
         else:
-            result = sample_categorical(probabilities, device=device)
+            result = sample_categorical(probabilities)
         return result
 
 
@@ -731,7 +731,7 @@ class RMSNorm(nn.Module):
         return output * self.weight
 
 
-def sample_continuous(mu, sigma, device='cpu'):
+def sample_continuous(mu, sigma):
     global eps
     dist = torch.distributions.Normal(mu, sigma + eps)
 
@@ -739,7 +739,7 @@ def sample_continuous(mu, sigma, device='cpu'):
     return x
 
 
-def get_log_prob_continuous(x, mu, sigma, device='cpu'):
+def get_log_prob_continuous(x, mu, sigma):
     dist = torch.distributions.Normal(mu, sigma + eps)
     x_tensor = x.clone()
     log_prob = dist.log_prob(x_tensor)
@@ -747,12 +747,12 @@ def get_log_prob_continuous(x, mu, sigma, device='cpu'):
     return log_prob
 
 
-def sample_categorical(probabilities, device='cpu'):
+def sample_categorical(probabilities):
     result = probabilities.multinomial(num_samples=1)
     return result
 
 
-def get_log_prob_categorical(x, probabilities, device='cpu'):
+def get_log_prob_categorical(x, probabilities):
     log_prob = torch.log(probabilities[x])[0]
     return log_prob
 

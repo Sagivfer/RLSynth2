@@ -10,6 +10,7 @@ import wandb
 from abc import ABC, abstractmethod
 from random import shuffle, sample
 import matplotlib.pyplot as plt
+from scipy.io.wavfile import write
 
 # from RL_Synth.Training.Training_Scripts.ParameterTrainingFFT import oscillator
 # from RL_Synth.Training.Training_Scripts.SST import current_agent
@@ -403,8 +404,8 @@ class Environment(object):
         # Giving 5% chance for each number below the number of editable modules.
         # When we have 3 modules as an example, we have 5% for 1 and 5% for 2 and 90% for 3.
         p_modules = np.random.random()
-        # n_modules_local = min([int(p_modules / 0.05) + 1, len(self.synth.editable_modules)])
-        n_modules_local = 2
+        n_modules_local = min([int(p_modules / 0.05) + 1, len(self.synth.editable_modules)])
+        # n_modules_local = 2
 
         # Choosing just some of the modules to change to teach the model how to choose what module to change.
         chosen_module_indices = sample(range(len(self.synth.editable_modules)), n_modules_local)
@@ -414,8 +415,8 @@ class Environment(object):
         parameters_indices = list()
         for module in modules:
             p_parameters = np.random.random()
-            # n_parameters_local = min([int(p_parameters / 0.05) + 1, len(self.synth.editable_modules)])
-            n_parameters_local = 2
+            n_parameters_local = min([int(p_parameters / 0.05) + 1, len(self.synth.editable_modules)])
+            # n_parameters_local = 2
 
             # Choosing just some of the parameters to change to teach the model how to choose what parameter to change.
             if n_parameters_local > len(module.editable_parameters):
@@ -948,14 +949,14 @@ class OptionBasedAgent(Agent):
         if policy is None:
             policy, _, _ = self.get_policy_from_state_representation(state_representation)
         probabilities = policy[0]
-        choice_log_prob = Models.get_log_prob_categorical(action, probabilities, device=self.device)
+        choice_log_prob = Models.get_log_prob_categorical(action, probabilities)
         return choice_log_prob
 
     def get_continuous_parameter_log_prob(self, action, state_representation, policy=None):
         if policy is None:
             policy, _, _ = self.get_policy_from_state_representation(state_representation)
         mu, sigma, extremity = policy[0]
-        parameter_log_prob = Models.get_log_prob_continuous(action, mu, sigma, device=self.device)
+        parameter_log_prob = Models.get_log_prob_continuous(action, mu, sigma)
         return parameter_log_prob
 
     def get_action_log_prob(self, action, state_representation, policy=None):
@@ -1090,12 +1091,20 @@ class HierarchicalAgent(Manager, Agent):
     def get_action_log_prob(self, action, state_representation, index=None, policy=None):
         if index is None:
             index = self.current_agent_level
-
         agent = self.get_agent_from_action(action[0], index)
         log_prob = agent.get_action_log_prob(action[0][index], state_representation, policy)
         return log_prob
 
     def init_agents(self, state_representation=None):
+        for level in self.agents.keys():
+            for agent in self.agents[level]:
+                agent.start_time = 0
+        self.active_agents_indices = list(self.indices2agent_keys[1])
+        self.current_agent_level = len(self.active_agents_indices)
+        active_agent = self.get_agent_from_indices(self.current_agent_level)
+        active_agent.start_time = 0
+        return
+
         if state_representation is None:
             state_representation, _ = self.get_state_representation()
 
@@ -1122,6 +1131,13 @@ class HierarchicalAgent(Manager, Agent):
         return policy, termination
 
     def search_agent(self, state_representation, t, logger: Utils.Logger = None, is_optimal=False):
+        # if t == 0:
+        #     self.active_agents_indices = list(self.indices2agent_keys[3])
+        #     active_agent = self.get_agent_from_indices(self.current_agent_level)
+        #     active_agent.start_time = 1
+        #     self.top_agent.start_time = 1
+        #     return
+
         active_agent = self.get_agent_from_indices(self.current_agent_level)
         agent_for_log = active_agent
         policy, stop_prob, _ = active_agent.get_policy_from_state_representation(state_representation)
@@ -1387,10 +1403,6 @@ def create_trajectory(n_actions, episode: Utils.Episode, agent, env: Environment
                       is_optimal=False, play_sound=False, show_spec=False, specs_dir=None, inference_mode=False):
     state_representation, _ = agent.get_state_representation()
 
-    # print(env.synth2copy.oscillators[0].freq.value, env.synth2copy.oscillators[0].waveform.value,
-    #       env.synth2copy.oscillators[1].freq.value, env.synth2copy.oscillators[1].waveform.value)
-    # print('-------------------')
-
     if show_spec:
         plt.imshow(env.current_signal_mel_spec.cpu().numpy())
         plt.show()
@@ -1404,10 +1416,7 @@ def create_trajectory(n_actions, episode: Utils.Episode, agent, env: Environment
         if specs_dir is not None:
             plt.savefig(specs_dir + '\\desired.png')
 
-    # print("Synth2Copy:")
-    # print(env.synth2copy.oscillators[0], env.synth2copy.oscillators[1])
     for i in range(n_actions):
-        # print('-----------')
         with torch.no_grad():
             if logger is not None and env.synth.n_oscillators == 1:
                 freq_diff = env.synth.oscillators[0].freq.value - env.synth2copy.oscillators[0].freq.value
@@ -1417,8 +1426,6 @@ def create_trajectory(n_actions, episode: Utils.Episode, agent, env: Environment
                 cutoff_freq_diff = env.synth.filters[0].cutoff_freq.value - env.synth2copy.filters[0].cutoff_freq.value
                 logger.what2log_t['Cutoff freq diff vs t'] = cutoff_freq_diff
 
-            # print(env.synth.oscillators[0].freq.value, env.synth.oscillators[0].waveform.value,
-            #       env.synth.oscillators[1].freq.value, env.synth.oscillators[1].waveform.value)
             action = agent.get_action_from_state_representation(state_representation, is_optimal=is_optimal)
             action_log_prob = agent.get_action_log_prob(action, state_representation)
             episode.Actions.append(action)
@@ -1426,7 +1433,6 @@ def create_trajectory(n_actions, episode: Utils.Episode, agent, env: Environment
             episode.ActionProbabilities.append(action_prob)
 
             reward, next_state = env.step(action, inference_mode=inference_mode)
-            # print(env.synth.oscillators[0], env.synth.oscillators[1])
             if play_sound:
                 env.synth2copy.play_sound()
                 env.synth.play_sound()
@@ -1466,14 +1472,14 @@ def create_trajectory(n_actions, episode: Utils.Episode, agent, env: Environment
             if isinstance(agent, HierarchicalAgent) or isinstance(agent, CyclicAgent):
                 agent.get_agent_from_indices().episodes.append([len(episode.Actions) - 1, len(episode.Actions),
                                                                 action_prob, False])
-                agent.search_agent(state_representation, len(episode.Actions) - 1, logger, is_optimal)
-
+                agent.search_agent(state_representation=state_representation,
+                                   t=len(episode.Actions) - 1,
+                                   logger=logger,
+                                   is_optimal=is_optimal)
         terminate = env.get_episode_stopping_condition()
         if terminate:
             episode.terminated = True
             break
-    # print(env.synth.oscillators[0].freq.value, env.synth.oscillators[0].waveform.value,
-    #       env.synth.oscillators[1].freq.value, env.synth.oscillators[1].waveform.value)
 
 
 def create_hierarchical_agent(env, training_config, model_config, is_single_agent):
@@ -1853,7 +1859,7 @@ def DFS_log_prob(agent: OptionBasedAgent, action, state_representation, index=0,
 
 def build_indices(agent: OptionBasedAgent, current_index: int = 0, current_list: list = [], indices2agent: dict = {}):
     # Include the current node's index
-    current_list.append(torch.tensor(current_index, device='cuda'))
+    current_list.append(torch.tensor(current_index, device='cuda').unsqueeze(0))
 
     # If it's a leaf node, return
     if len(agent.next_agents) == 0:
@@ -1868,8 +1874,8 @@ def build_indices(agent: OptionBasedAgent, current_index: int = 0, current_list:
     return indices2agent
 
 
-def test_model(test_set, n_actions, env: Environment, agent, play_sound=False, show_spec=False, specs_dir=None,
-               parameter_regression: nn.Module = None, t=0):
+def test_model(test_set, n_actions, env: Environment, agent, play_sound=False, save_sound=False, show_spec=False, t=0,
+               sound_dir: str = ""):
     avg_loss = 0
     avg_freq_diff = 0
     avg_cutoff_freq_diff = 0
@@ -1877,9 +1883,10 @@ def test_model(test_set, n_actions, env: Environment, agent, play_sound=False, s
     count_play = 0
     play_sound_local = False
     show_spec_local = False
+    save_sound_local = False
     save_arrows_flag = False
     point_dir = None
-    n_test = 1
+    n_test = 1000
     n_graph = 100
     desired_points = list()
     final_points = list()
@@ -1895,10 +1902,9 @@ def test_model(test_set, n_actions, env: Environment, agent, play_sound=False, s
         episode.States.append(state)
 
         if count_play == 8:
-            if play_sound:
-                play_sound_local = True
-            if show_spec:
-                show_spec_local = True
+            play_sound_local = True if play_sound else False
+            save_sound_local = True if save_sound else False
+            show_spec_local = True if show_spec else False
                 # point_dir = specs_dir + f'\\point_{i}'
                 # os.mkdir(point_dir)
             count_play = 0
@@ -1906,6 +1912,9 @@ def test_model(test_set, n_actions, env: Environment, agent, play_sound=False, s
         create_trajectory(n_actions, episode, agent, env, is_optimal=True,
                           play_sound=play_sound_local, show_spec=show_spec_local, specs_dir=point_dir,
                           inference_mode=True)
+        if save_sound_local:
+            write(fr'{sound_dir}/{i}desired.wav', env.synth.sample_rate, env.desired_signal.cpu().numpy())
+            write(fr'{sound_dir}/{i}current.wav', env.synth.sample_rate, env.current_signal.cpu().numpy())
 
         # max_val_d = torch.max(env.desired_signal_mel_spec).item()
         # max_val_c = torch.max(env.current_signal_mel_spec).item()
@@ -1934,6 +1943,7 @@ def test_model(test_set, n_actions, env: Environment, agent, play_sound=False, s
 
         show_spec_local = False
         play_sound_local = False
+        save_sound_local = False
 
         func = lambda x: x.freq.value
 
