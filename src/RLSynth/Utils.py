@@ -150,12 +150,20 @@ class Logger(object):
         self.averages_squared = dict()
         self.std = dict()
         self.count_for_average = dict()
+        self.batch_averages = dict()
+        self.batch_averages_squared = dict()
+        self.count_for_temporary_average = dict()
 
         self.what2log_t = dict()
         self.what2log = dict()
         self.step = 0
         self.loss_calc_step = 0
         self.opt_step = 0
+
+    def update_batch_average(self, average, new_value):
+        self.batch_averages[average] += new_value
+        self.batch_averages_squared[average] += new_value ** 2
+        self.count_for_temporary_average[average] += 1
 
     # Update average of a specific logged variable
     def update_average(self, average, new_value, add_to_count=True):
@@ -184,16 +192,16 @@ class Logger(object):
                                  (1 - self.moving_avg_alpha) * new_value
         self.averages_squared[average] = (1 - self.moving_avg_alpha) * (self.averages_squared[average] +
                                                                         self.moving_avg_alpha * np.power(diff_from_mean1, 2))
-        # self.averages_squared[average] = self.moving_avg_alpha * self.averages_squared[average] +\
-        #                                  (1 - self.moving_avg_alpha) * np.power(diff_from_mean1, 2)
-        # self.std[average] = np.sqrt(self.averages_squared[average]) / self.count_for_average[average]
         self.std[average] = np.sqrt(self.averages_squared[average])
 
     def set_up_log(self, what2log):
         self.averages[what2log] = 0
         self.averages_squared[what2log] = 0
+        self.batch_averages[what2log] = 0
+        self.batch_averages_squared[what2log] = 0
         self.std[what2log] = 1
         self.count_for_average[what2log] = 0
+        self.count_for_temporary_average[what2log] = 0
 
 
 class PPOMemory(Dataset):

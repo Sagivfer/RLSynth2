@@ -90,7 +90,7 @@ class RLOptimizer(object):
 
         if logger is None:
             self.logger = UT.Logger(config['average_type'], 0.99)
-            self.advantage_logger = UT.Logger(config['average_type'], 0.9)
+            self.advantage_logger = UT.Logger(config['average_type'], 0.33)
 
             for log in what2log:
                 self.logger.set_up_log(log)
@@ -102,12 +102,12 @@ class RLOptimizer(object):
                     if len(synth_parameter_object.options) == 0:
                         self.logger.set_up_log(f'{log_name}_diff')
 
-            for t in range(T):
-                self.advantage_logger.set_up_log(f'{self.agent.module_name}_advantage_{t}')
+            # for t in range(T):
+                # self.advantage_logger.set_up_log(f'{self.agent.module_name}_advantage_{t}')
 
-                for level in self.level2agent.keys():
-                    for agent in self.level2agent[level]:
-                        self.advantage_logger.set_up_log(f'{agent.module_name}_advantage_{t}')
+                # for level in self.level2agent.keys():
+                #     for agent in self.level2agent[level]:
+                #         self.advantage_logger.set_up_log(f'{agent.module_name}_advantage_{t}')
 
             for level in self.level2agent.keys():
                 for agent in self.level2agent[level]:
@@ -115,6 +115,7 @@ class RLOptimizer(object):
                     self.logger.set_up_log(f'{agent.module_name}_extremity')
                     self.logger.set_up_log(f'{agent.module_name}_dwell')
                     self.advantage_logger.set_up_log(f'{agent.module_name}_advantage')
+                    self.advantage_logger.set_up_log(f'{agent.module_name}_advantage_std')
 
         else:
             self.logger = logger
@@ -251,7 +252,7 @@ class RLOptimizer(object):
         stopping_loss = torch.zeros(1, device=self.device)
         stopping_regularization = torch.zeros(1, device=self.device)
         if stop_prob is not None:
-            stopping_loss = delta * stop_prob
+            stopping_loss = (delta + self.etta) * stop_prob
             stopping_regularization = torch.abs(0.5 - stop_prob)
 
         # print(f"Stopping loss: {stopping_loss}, Stopping regularization: {stopping_regularization}")
@@ -268,11 +269,13 @@ class RLOptimizer(object):
         loss_weight = self.get_loss_weight(agent)
         self.losses.append(self.get_critic_loss(critic_error) * loss_weight)
         self.losses.append(self.get_critic_lipschitz_reg(critic_td_error, agent, action) * loss_weight)
-        self.advantage_logger.update_average(f'{agent.module_name}_advantage', advantage)
+
+        # Updating the temporary average so all the advantages are equally weighted
+        self.advantage_logger.update_batch_average(f'{agent.module_name}_advantage', advantage)
         advantage_for_stopping = advantage
         if self.normalize_reward and self.logger.loss_calc_step > 10000:
-            advantage = (advantage - self.advantage_logger.averages[f'{agent.module_name}_advantage']) \
-                        / self.advantage_logger.std[f'{agent.module_name}_advantage']
+            std = self.advantage_logger.std[f'{agent.module_name}_advantage_std'] + 1e-8
+            advantage = (advantage - self.advantage_logger.averages[f'{agent.module_name}_advantage']) / std
 
         self.losses.append(self.get_actor_loss(advantage, action_log_prob, transition) * loss_weight)
         self.losses.append(self.get_representation_reg(signal_representation) * loss_weight)
@@ -390,15 +393,16 @@ class RLOptimizer(object):
         reward = torch.tensor(transition.reward)
         critic_error = reward
         advantage = transition.G
+        td_target = transition.G
         if self.is_with_baseline:
             if state1_representation is None or state2_representation is None:
                 state1_representation, state2_representation, _ = self.get_state_representations(critic, transition)
 
             critic_value1 = critic.get_value_of_state(state1_representation)
             self.logger.update_average('critic_value', critic_value1.item())
-            critic_error = transition.G - critic_value1  # Critic error is always w.r.t G[t]
+            critic_error = td_target - critic_value1  # Critic error is always w.r.t G[t]
             # print(transition.G, critic_value1, critic_error, 'G')
-            advantage = critic_error.item()
+            advantage = critic_error.detach()
 
             # TD estimate instead of Monte Carlo estimate
             if self.is_TD:
@@ -410,11 +414,9 @@ class RLOptimizer(object):
 
                 td_target = reward + self.gamma ** transition.n_steps * critic_value2
                 advantage = td_target - critic_value1.item()
-                # print(advantage.item(), reward, critic_value1.item(), critic_value2)
                 critic_error = td_target - critic_value1
-                # print(critic_value1, critic_value2, transition.reward, target)
                 # print(transition.state1[-1], transition.state2[-1])
-        return critic_error, advantage, transition.G
+        return critic_error, advantage, td_target.cpu().numpy()
 
     def get_advantage(self, transition: UT.Transition = None, state1_representation=None, state2_representation=None):
         if transition.advantage is not None:
@@ -443,7 +445,7 @@ class RLOptimizer(object):
             critic_error, critic_td_error, td_target = self.get_critic_error(transition, None, None, self.critic)
 
         self.logger.update_average('td_target', td_target)
-        transition.td_error = abs(critic_td_error)
+        transition.td_error = abs(td_target)
         self.calc_loss_components(agent=sub_agent,
                                   action=transition.action,
                                   advantage=advantage,
@@ -626,6 +628,7 @@ class OnlineAlgorithm(RLOptimizer):
             self.logger.opt_step += 1
             self.update_parameters_wrt_grads()
             self.update_learning_schedulers()
+            self.update_batch_advantage_statistics()
             self.n_steps_for_update = 0
 
         return self.R
@@ -663,6 +666,27 @@ class OnlineAlgorithm(RLOptimizer):
     def update_parameters_wrt_grads(self, delta=1):
         super(OnlineAlgorithm, self).update_parameters_wrt_grads()
         self.critic.copy_weights_to_target()
+
+    def update_batch_advantage_statistics(self):
+        for level in self.level2agent.keys():
+            for agent in self.level2agent[level]:
+                key = f'{agent.module_name}_advantage'
+                if self.advantage_logger.count_for_temporary_average[key] == 0:
+                    continue
+                batch_mean = (self.advantage_logger.batch_averages[key] /
+                                  self.advantage_logger.count_for_temporary_average[key])
+                self.advantage_logger.update_average(key, batch_mean)
+
+                batch_mean_squared = (self.advantage_logger.batch_averages_squared[key] /
+                                      self.advantage_logger.count_for_temporary_average[key])
+
+                batch_std = (batch_mean_squared - batch_mean ** 2) ** 0.5
+                self.advantage_logger.update_average(f'{key}_std', batch_std)
+
+                # Zero the means for the next update
+                self.advantage_logger.batch_averages[key] = 0
+                self.advantage_logger.batch_averages_squared[key] = 0
+                self.advantage_logger.count_for_temporary_average[key] = 0
 
 
 class OfflineAlgorithm(RLOptimizer):

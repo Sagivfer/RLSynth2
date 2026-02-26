@@ -1,1 +1,9 @@
-{"representation_dim": 20, "models_dim": 20, "n_layers": 1, "Backbone": "CNN2D", "are_shared_mlp": true, "are_shared_backbone": false, "pretrained": false}
+{"representation_dim": 20,
+  "models_dim": 20,
+  "n_layers": 1,
+  "Backbone": "CNN2D",
+  "are_shared_mlp": true,
+  "are_shared_backbone": false,
+  "pretrained": false,
+  "algorithm": "OptionCritic",
+  "experiment_num": 1175}

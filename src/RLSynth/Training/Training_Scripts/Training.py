@@ -28,12 +28,13 @@ with open(model_config_file) as f:
 with open(training_config_file) as f:
     training_config = dict(json.load(f))
     device = training_config["device"]
-    n_steps = training_config["n_steps"]
-    T = training_config["episode_len"]
+    T_list = training_config['T_list']
+    n_steps_list = training_config['n_steps_list']
     lr_agent_representation = training_config["lr_agent_representation"]
     lr_critic_representation = training_config["lr_critic_representation"]
     lr_agent = training_config["lr_agent"]
     lr_critic = training_config["lr_critic"]
+    lr_level_multiplier = training_config["lr_level_multiplier"]
     exploratory = training_config["exploratory"]
     baseline = training_config["baseline"]
     algorithm = training_config["algorithm"]
@@ -65,15 +66,14 @@ level_to_model = Environment.DFS_agent_parameters(manager.top_agent)
 n_levels = len(level_to_model.keys()) - 1
 for level, agents_models in level_to_model.items():
     for model, model_name, sub_agent in agents_models:
-        multiplier = 0.1 if len(sub_agent.next_agents) > 0 else 1
-        # multiplier = 1
+        multiplier = lr_level_multiplier if len(sub_agent.next_agents) > 0 else 1
         # Higher learning rate for categorical choices
-        # if len(sub_agent.next_agents) == 0 and len(sub_agent.options) > 0:
-        #     multiplier *= 10
+        if len(sub_agent.next_agents) == 0 and len(sub_agent.options) > 0:
+            multiplier *= 2.5
 
         for sub_model_name, sub_model in model.named_children():
-            if sub_model_name == 'termination':
-                multiplier *= 0.1
+            if sub_model_name == 'termination' and len(sub_agent.options) == 0:
+                multiplier *= 0.2
                 # multiplier *= 1
 
             param_dict = {'params': list(sub_model.parameters()), 'lr': lr_agent * multiplier}
@@ -91,23 +91,12 @@ for model, name in zip(critic_models, critic_model_names):
 critic.model_parameters = critic_param_list
 
 if model_config["pretrained"]:
-    sound_path_pretrained = fr"{project_dir}/Models/VF/cnn_vf_pretrain.pth"
-    mlp_path_pretrained = fr"{project_dir}/Models/VF/mlp_vf_pretrain.pth"
+    pretrained_experiment_num = model_config["experiment_num"]
+    algorithm_experiment = model_config["algorithm"]
+    manager.load_models(fr'{project_dir}/TrainedModels/{algorithm_experiment}/{pretrained_experiment_num}/Agent')
+    critic.load_models(fr'{project_dir}/TrainedModels/{algorithm_experiment}/{pretrained_experiment_num}/Critic')
     # sound_path_pretrained = fr"C:/Users/sgvfe/Desktop/Degree/2nd_degree/Thesis/Models/DeltaLab/enc_dec.ckpt"
     # parameters_path_pretrained = fr"C:/Users/sgvfe/Desktop/Degree/2nd_degree/Thesis/Models/SST/ParametersEncoder.pth"
-
-    sound_model = Models.SimpleCNN([16, 16, 16], [3, 3, 3], representation_dim, env.n_frames, 128)
-    state_dict = torch.load(sound_path_pretrained)
-    sound_model.load_state_dict(state_dict)
-
-    if model_config['are_shared_mlp']:
-        mlp = Models.RLMLP(representation_dim, 1, env.curr_synth_parameters.shape[0], models_dim, n_layers)
-        state_dict = torch.load(mlp_path_pretrained)
-        mlp.load_state_dict(state_dict)
-        manager.advanced_representation = mlp
-
-    manager.SoundEncoder = sound_model
-    critic.SoundEncoder = sound_model
 
 manager.to(device=device)
 critic.to(device=device)
@@ -159,13 +148,8 @@ R = list()
 run = None
 logger = None
 advantage_logger = None
-T = 30
 
-for T, n_steps in zip([30, 35], [15000, 15000]):
-# for T, n_modules, n_parameters, n_steps in zip([30, 30, 30, 40, 50, 60],
-#                                     [1, 1, 2, 2, 2, 2],
-#                                     [1, 2, 1, 2, 2, 2],
-#                                     [1000, 1000, 10000, 10000, 10000, 10000]):
+for T, n_steps in zip(T_list, n_steps_list):
     RL_optimizer = Algorithms.algorithm2class[algorithm](optimizer_agent=optimizer_agent,
                                                          optimizer_critic=optimizer_critic,
                                                          lr_scheduler_agent=lr_scheduler_agent,
@@ -195,26 +179,6 @@ pr.enable()
 pr.disable()
 pr.dump_stats('profile.pstat')
 
-# for i in range(2, n_levels + 1):
-#     with open(fr'Level{i}_Synth.json') as f:
-#         synth_config2 = dict(json.load(f))
-#         agent.level_up(synth_config2)
-#
-#     if training_config["baseline"] or algorithm == "ActorCritic":
-#         critic.level_up(synth_config)
-#     RL_optimizer = Algorithms.algorithm2class[algorithm](optimizer_agent=optimizer_agent,
-#                                                          optimizer_critic=optimizer_critic,
-#                                                          lr_scheduler_agent=lr_scheduler_agent,
-#                                                          lr_scheduler_critic=lr_scheduler_critic,
-#                                                          env=env,
-#                                                          agent=agent,
-#                                                          critic=critic,
-#                                                          n_steps=n_steps[1],
-#                                                          T=T[1],
-#                                                          config=training_config)
-#
-#     R.append(RL_optimizer.optimize())
-
 if not os.path.isdir(fr"{project_dir}/TrainedModels/{algorithm}"):
     os.mkdir(fr"{project_dir}/TrainedModels/{algorithm}")
 
@@ -236,6 +200,3 @@ if training_config["baseline"] or algorithm == 'ActorCritic' or algorithm == 'Op
     critic_dir = fr"{project_dir}/TrainedModels/{algorithm}/{experiment_num}/Critic"
     os.mkdir(critic_dir)
     critic.save_models(critic_dir)
-
-with open(training_config_file, 'wt') as f:
-    json.dump(training_config, f)

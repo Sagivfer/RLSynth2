@@ -3,3 +3,5 @@ src/RLSynth/wandb/
 src/RLSynth/Regular_Training/wandb/
 src/wandb/
 wandb/
+src/Sounds
+src/TrainedModels

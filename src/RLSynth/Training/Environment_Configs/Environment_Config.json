@@ -1,1 +1,11 @@
-{"is_dynamic_synth": false, "randomize_time": 1, "hierarchy_type": "module", "reward_type": ["earth_mover"], "reward_weight": [1], "reward_offset": 0, "edge_penalty": -0.1, "action_scale": "linear", "device": "cuda"}
+{"is_dynamic_synth": false,
+  "randomize_time": 1,
+  "hierarchy_type": "module",
+  "reward_type": ["earth_mover"],
+  "reward_weight": [1],
+  "reward_offset": 0,
+  "starting_tolerance": 0.01,
+  "ending_tolerance": 0.01,
+  "edge_penalty": -0.2,
+  "action_scale": "linear",
+  "device": "cuda"}

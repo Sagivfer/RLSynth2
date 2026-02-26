@@ -35,7 +35,7 @@ class Environment(object):
     """
     def __init__(self, synth_config, hierarchy_type, is_dynamic_synth: bool, randomize_time=6, device='cpu',
                  reward_type=['similarity'], reward_weight=[1], max_state_val=1, scale_factor=1.0, reward_offset=0,
-                 edge_penalty=0, action_scale='linear'):
+                 starting_tolerance=0.05, ending_tolerance=0.01, edge_penalty=0, action_scale='linear'):
         self.device = device
 
         self.set_synth_related_attributes(synth_config)
@@ -71,7 +71,8 @@ class Environment(object):
         self.reward_offset = reward_offset
         self.edge_penalty = edge_penalty
         self.action_scale = action_scale
-        self.tolerance = 0.05
+        self.tolerance = starting_tolerance
+        self.ending_tolerance = ending_tolerance
 
     def set_synth_related_attributes(self, synth_config):
         self.config = synth_config
@@ -461,7 +462,7 @@ class Environment(object):
 
     def decrease_tolerance(self):
         self.tolerance *= 0.95
-        self.tolerance = max([self.tolerance, 0.01])
+        self.tolerance = max([self.tolerance, self.ending_tolerance])
 
     def save_sound(self, save_type):
         """
@@ -1033,7 +1034,7 @@ class OptionBasedAgent(Agent):
             for i, next_agent in enumerate(self.next_agents):
                 next_agent.load_models(new_path + str(i))
 
-    def check_stopping(self, task_beta, n_trials=0, stopped=False, is_optimal=False):
+    def check_stopping(self, task_beta, n_trials=0, is_optimal=False):
         """
             If we stop sub-agent by chance, we check whether it's the top agent.
             If the agent stopped is not a top agent, we continue to sample next agent in hierarchy
@@ -1041,7 +1042,7 @@ class OptionBasedAgent(Agent):
         sub_task_stopped = False
         if not self.is_top_agent:
             p = np.random.random()
-            task_beta_temp = task_beta.item() if not stopped else torch.ones(1)
+            task_beta_temp = task_beta.item()
             if n_trials <= 2:
                 if (task_beta_temp > 0.5 and is_optimal) or p < task_beta_temp:
                     sub_task_stopped = True
@@ -1131,12 +1132,13 @@ class HierarchicalAgent(Manager, Agent):
         return policy, termination
 
     def search_agent(self, state_representation, t, logger: Utils.Logger = None, is_optimal=False):
-        # if t == 0:
-        #     self.active_agents_indices = list(self.indices2agent_keys[3])
-        #     active_agent = self.get_agent_from_indices(self.current_agent_level)
-        #     active_agent.start_time = 1
-        #     self.top_agent.start_time = 1
-        #     return
+        if t == 0 and self.environment.synth.n_oscillators > 1:
+            self.active_agents_indices = list(self.indices2agent_keys[3])
+            active_agent = self.get_agent_from_indices(self.current_agent_level)
+            active_agent.start_time = 1
+            self.top_agent.start_time = 2
+            active_agent.previous_agent.start_time = 2
+            return
 
         active_agent = self.get_agent_from_indices(self.current_agent_level)
         agent_for_log = active_agent
@@ -1186,8 +1188,10 @@ class HierarchicalAgent(Manager, Agent):
 
             policy, stop_prob, _ = active_agent.get_policy_from_state_representation(state_representation)
             if is_direction_up:
-                sub_task_stopped = active_agent.check_stopping(stop_prob, n_trials,
-                                                               stopped=sub_task_stopped, is_optimal=is_optimal)
+                if sub_task_stopped and len(active_agent.next_agents) == 1:
+                    sub_task_stopped = True
+                else:
+                    sub_task_stopped = active_agent.check_stopping(stop_prob, n_trials, is_optimal=is_optimal)
             agent_for_log = active_agent
 
     def to(self, device):
@@ -1407,7 +1411,7 @@ def create_trajectory(n_actions, episode: Utils.Episode, agent, env: Environment
         plt.imshow(env.current_signal_mel_spec.cpu().numpy())
         plt.show()
 
-    if isinstance(agent, HierarchicalAgent) or isinstance(agent, CyclicAgent) and len(episode.States) <= 1:
+    if isinstance(agent, HierarchicalAgent) or isinstance(agent, CyclicAgent) and len(episode.States) <= 0:
         agent.init_agents()
 
     if show_spec:
@@ -1736,6 +1740,8 @@ def initialize_env(synth_config_dir, environment_config_dir) -> Environment:
                       reward_type=environment_config['reward_type'],
                       reward_weight=environment_config['reward_weight'],
                       reward_offset=environment_config['reward_offset'],
+                      starting_tolerance=environment_config['starting_tolerance'],
+                      ending_tolerance=environment_config['ending_tolerance'],
                       edge_penalty=environment_config['edge_penalty'],
                       action_scale=environment_config['action_scale'],
                       max_state_val=max_state_val,
